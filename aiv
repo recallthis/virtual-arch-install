@@ -1,0 +1,54 @@
+#!/bin/bash
+
+mydisk () {
+  devicelist="$(lsblk -pdlno KNAME,SIZE /dev/sda[0-9] | awk '{if (NF>1) {print $0}}')"
+  local device=$(dialog --stdout --menu "Select $1 disk" 0 0 0 ${devicelist} || exit 1)
+  echo ${device}
+}
+
+iarch () {
+      myswap="$(mydisk swap)"
+      printf "\nFormat ${myroot} as root"
+      printf "${myswap} as swap (and /dev/sda1 as boot) .\n"
+      printf "\nType yes to format, no to resume installation, "
+      printf "or exit to leave. yes/no/exit: "
+      read choice
+      if [ "$choice" == "yes" ]; then
+      mkfs.ext4 -F $myroot
+      elif [ "$choice" == "exit" ]; then
+	exit 0
+      fi
+      mkswap $myswap
+      swapon $myswap
+      mount $myroot /mnt
+      sed -i '/#\[multilib]/!b;n;cInclude = /\etc/\pacman.d/\mirrorlist' \
+      /etc/pacman.conf
+      pacman -Sy
+      pacstrap /mnt base base-devel linux linux-firmware sudo nano
+      genfstab -U -p /mnt > /mnt/etc/fstab
+      mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
+      cat <<-EOF > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
+[Service]
+ExecStart=
+ExecStart=-/usr/bin/agetty --autologin user --noclear %I $TERM
+EOF
+}
+
+getSources() {
+reflector --country "United Kingdom" \
+          --age 12 \
+          --protocol https \
+          --sort rate \
+          > /etc/pacman.d/mirrorlist
+}
+
+if [[ "$1" == "sources" ]]; then
+   getSources
+   exit 0
+else
+   pacman -Sy dialog
+   myroot=$(mydisk root)
+   [ "$(lsblk | grep /mnt$)" ] || mount $myroot /mnt
+   iarch
+   [ "$(lsblk | grep "\[SWAP\]$")" ] && swapoff $myswap
+fi
