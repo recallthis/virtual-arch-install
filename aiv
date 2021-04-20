@@ -51,4 +51,5 @@ else
    [ "$(lsblk | grep /mnt$)" ] || mount $myroot /mnt
    iarch
    [ "$(lsblk | grep "\[SWAP\]$")" ] && swapoff $myswap
+   # hi
 fi
