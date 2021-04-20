@@ -45,7 +45,7 @@ reflector --country "United Kingdom" \
 if [[ "$1" == "sources" ]]; then
    getSources
    exit 0
-else
+elif [ ! "$1" ]; then
    pacman -Sy dialog
    myroot=$(mydisk root)
    [ "$(lsblk | grep /mnt$)" ] || mount $myroot /mnt
