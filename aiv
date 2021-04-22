@@ -8,10 +8,10 @@ getdisk () {
     echo "$devicelist"
     read -p "Choose a root device number from 1-$devicetotal  " rootchoice
     read -p "Choose a swap device number from 1-$devicetotal  " swapchoice
-    if [[ "$rootchoice" -gt 0 ]] && [[ "$rootchoice" -lt "$devicetotal" ]]; then
+    if [[ "$rootchoice" -gt 0 ]] && [[ "$rootchoice" -le "$devicetotal" ]]; then
     let "rootchoice--"
     myroot=$(printf "${devicearray[$rootchoice]}" | awk '{print $2}')
-    if [[ "$swapchoice" -gt 0 ]] && [[ "$swapchoice" -lt "$devicetotal" ]]; then
+    if [[ "$swapchoice" -gt 0 ]] && [[ "$swapchoice" -le "$devicetotal" ]]; then
         let "swapchoice--"
         myswap=$(printf "${devicearray[$swapchoice]}" | awk '{print $2}')
     else
