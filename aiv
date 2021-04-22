@@ -1,33 +1,53 @@
 #!/bin/bash
 
-mydisk () {
-  devicelist="$(lsblk -pdlno KNAME,SIZE /dev/sda[0-9] | awk '{if (NF>1) {print $0}}')"
-  local device=$(dialog --stdout --menu "Select $1 disk" 0 0 0 ${devicelist} || exit 1)
-  echo ${device}
+getdisk () {
+    IFS=$'\n'
+    devicelist="$(lsblk -pdlno KNAME,SIZE /dev/sda[0-9] | awk '{if (NF>1) {print " "NR "\t" $0}}')"
+    devicearray=( $(echo "$devicelist") )
+    devicetotal="$(echo "$devicelist" | wc -l)"
+    echo "$devicelist"
+    read -p "Choose a root device number from 1-$devicetotal  " rootchoice
+    read -p "Choose a swap device number from 1-$devicetotal  " swapchoice
+    if [[ "$rootchoice" -gt 0 ]] && [[ "$rootchoice" -lt "$devicetotal" ]]; then
+    let "rootchoice--"
+    myroot=$(printf "${devicearray[$rootchoice]}" | awk '{print $2}')
+    if [[ "$swapchoice" -gt 0 ]] && [[ "$swapchoice" -lt "$devicetotal" ]]; then
+        let "swapchoice--"
+        myswap=$(printf "${devicearray[$swapchoice]}" | awk '{print $2}')
+    else
+        echo "invalid device number for swap"
+        exit 0
+    fi
+else
+    echo "invalid device number for root"
+    exit 0
+fi
 }
 
 iarch () {
-      myswap="$(mydisk swap)"
-      printf "\nFormat ${myroot} as root"
-      printf "${myswap} as swap (and /dev/sda1 as boot) .\n"
-      printf "\nType yes to format, no to resume installation, "
-      printf "or exit to leave. yes/no/exit: "
-      read choice
-      if [ "$choice" == "yes" ]; then
-      mkfs.ext4 -F $myroot
-      elif [ "$choice" == "exit" ]; then
+    getdisk
+    [ "$(lsblk | grep /mnt$)" ] && umount /mnt
+    [ "$(lsblk | grep "\[SWAP\]$")" ] && swapoff $myswap
+    printf "\nFormat ${myroot} as root \
+            ${myswap} as swap (and /dev/sda1 as boot) .\n \
+            \nType yes to format, no to resume installation, \
+             or exit to leave. yes/no/exit: "
+    read formatchoice
+    if [ "$formatchoice" == "yes" ]; then
+        mkfs.ext4 -F $myroot
+    elif [ "$formatchoice" == "exit" ]; then
 	exit 0
       fi
-      mkswap $myswap
-      swapon $myswap
-      mount $myroot /mnt
-      sed -i '/#\[multilib]/!b;n;cInclude = /\etc/\pacman.d/\mirrorlist' \
-      /etc/pacman.conf
-      pacman -Sy
-      pacstrap /mnt base base-devel linux linux-firmware sudo nano
-      genfstab -U -p /mnt > /mnt/etc/fstab
-      mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
-      cat <<-EOF > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
+    mkswap $myswap
+    swapon $myswap
+    mount $myroot /mnt
+    sed -i '/#\[multilib]/!b;n;cInclude = /\etc/\pacman.d/\mirrorlist' \
+        /etc/pacman.conf
+    pacman -Sy
+    pacstrap /mnt base base-devel linux linux-firmware sudo nano
+    genfstab -U -p /mnt > /mnt/etc/fstab
+    mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
+    cat <<-EOF > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
 [Service]
 ExecStart=
 ExecStart=-/usr/bin/agetty --autologin user --noclear %I $TERM
@@ -43,13 +63,16 @@ reflector --country "United Kingdom" \
 }
 
 if [[ "$1" == "sources" ]]; then
-   getSources
-   exit 0
+    getSources
+    exit 0
+elif [[ "$1" == "test" ]]; then
+    getdisk
+    echo $myroot
+    echo $myswap
+    exit 0
 elif [ ! "$1" ]; then
-   pacman -Sy dialog
-   myroot=$(mydisk root)
-   [ "$(lsblk | grep /mnt$)" ] || mount $myroot /mnt
-   iarch
-   [ "$(lsblk | grep "\[SWAP\]$")" ] && swapoff $myswap
-   # hi
+    iarch
 fi
+
+# finish and umount stuff
+[ "$(lsblk | grep "\[SWAP\]$")" ] && swapoff $myswap
