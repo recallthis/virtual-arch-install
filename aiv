@@ -41,17 +41,16 @@ iarch () {
     mkswap $myswap
     swapon $myswap
     mount $myroot /mnt
-    sed -i '/#\[multilib]/!b;n;cInclude = /\etc/\pacman.d/\mirrorlist' \
-        /etc/pacman.conf
-    pacman -Sy
-    pacstrap /mnt base base-devel linux linux-firmware sudo nano
-    genfstab -U -p /mnt > /mnt/etc/fstab
-    mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
-    cat <<-EOF > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
-[Service]
-ExecStart=
-ExecStart=-/usr/bin/agetty --autologin user --noclear %I $TERM
-EOF
+    sed -i '/#\[multilib]/!b;n;cInclude = /\etc/\pacman.d/\mirrorlist' /etc/pacman.conf
+    #pacman -Sy
+    #pacstrap /mnt base base-devel linux linux-firmware sudo nano
+    #genfstab -U -p /mnt > /mnt/etc/fstab
+    #mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
+    #cat <<-EOF > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
+#[Service]
+#ExecStart=
+#ExecStart=-/usr/bin/agetty --autologin user --noclear %I $TERM
+#EOF
 }
 
 getSources() {
@@ -71,6 +70,7 @@ elif [[ "$1" == "test" ]]; then
     echo $myswap
     exit 0
 elif [ ! "$1" ]; then
+    getSources
     iarch
 fi
 
