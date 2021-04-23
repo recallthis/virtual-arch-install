@@ -47,10 +47,10 @@ iarch () {
     genfstab -U -p /mnt > /mnt/etc/fstab
     mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
     printf '#[Service]\n \
-            #Execstart\n \
-            #ExecStart=-/usr/bin/agetty --autologin user \
+           \#Execstart\n \
+           \#ExecStart=-/usr/bin/agetty --autologin user \
                                         --noclear %I $TERM \
-    > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
+    > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf'
     #cat <<-EOF > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
 #[Service]
 #ExecStart=
@@ -70,9 +70,12 @@ if [[ "$1" == "sources" ]]; then
     getSources
     exit 0
 elif [[ "$1" == "test" ]]; then
-    getdisk
-    echo $myroot
-    echo $myswap
+    mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
+    printf '#[Service]\n \
+           \#Execstart\n \
+           \#ExecStart=-/usr/bin/agetty --autologin user \
+                                        --noclear %I $TERM \
+    > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf'
     exit 0
 elif [ ! "$1" ]; then
     getSources
