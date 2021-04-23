@@ -46,8 +46,8 @@ iarch () {
     pacstrap /mnt base base-devel linux linux-firmware sudo nano
     genfstab -U -p /mnt > /mnt/etc/fstab
     mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
-    printf '#[Service] \
-            #Execstart \
+    printf '#[Service]\n \
+            #Execstart\n \
             #ExecStart=-/usr/bin/agetty --autologin user \
                                         --noclear %I $TERM \
     > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
