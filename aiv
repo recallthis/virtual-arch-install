@@ -9,19 +9,19 @@ getdisk () {
     read -p "Choose a root device number from 1-$devicetotal  " rootchoice
     read -p "Choose a swap device number from 1-$devicetotal  " swapchoice
     if [[ "$rootchoice" -gt 0 ]] && [[ "$rootchoice" -le "$devicetotal" ]]; then
-    let "rootchoice--"
-    myroot=$(printf "${devicearray[$rootchoice]}" | awk '{print $2}')
-    if [[ "$swapchoice" -gt 0 ]] && [[ "$swapchoice" -le "$devicetotal" ]]; then
-        let "swapchoice--"
-        myswap=$(printf "${devicearray[$swapchoice]}" | awk '{print $2}')
+        let "rootchoice--"
+        myroot=$(printf "${devicearray[$rootchoice]}" | awk '{print $2}')
+        if [[ "$swapchoice" -gt 0 ]] && [[ "$swapchoice" -le "$devicetotal" ]]; then
+            let "swapchoice--"
+            myswap=$(printf "${devicearray[$swapchoice]}" | awk '{print $2}')
+        else
+            echo "invalid device number for swap"
+            exit 0
+        fi
     else
-        echo "invalid device number for swap"
+        echo "invalid device number for root"
         exit 0
     fi
-else
-    echo "invalid device number for root"
-    exit 0
-fi
 }
 
 iarch () {
@@ -38,19 +38,21 @@ iarch () {
     elif [ "$formatchoice" == "exit" ]; then
 	exit 0
       fi
+    timedatectl set-ntp true
+    mount $myroot /mnt
     mkswap $myswap
     swapon $myswap
-    mount $myroot /mnt
-    sed -i '/#\[multilib]/!b;n;s/^#//g' /etc/pacman.conf
     pacman -Sy
     pacstrap /mnt base base-devel linux linux-firmware sudo nano
+    sed -i '/#\[multilib]/!b;n;s/^#//g' /mnt/etc/pacman.conf
     genfstab -U -p /mnt > /mnt/etc/fstab
     mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
-    printf "#[Service]"\
-           "\n#Execstart"\
-           "\n#ExecStart=-/usr/bin/agetty --autologin user "\
-                                         "--noclear %I $TERM"\
-    > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
+    echo -e "#[Service]"\
+            "\n#Execstart"\
+            "\n#ExecStart=-/usr/bin/agetty "\
+            "--autologin user --noclear %I $TERM"\
+            > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
+
 }
 
 getSources() {
@@ -66,11 +68,11 @@ if [[ "$1" == "sources" ]]; then
     exit 0
 elif [[ "$1" == "test" ]]; then
     mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
-    printf "#[Service]"\
-           "\n#Execstart"\
-           "\n#ExecStart=-/usr/bin/agetty --autologin user "\
-                                         "--noclear %I $TERM"\
-    > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
+    echo -e "#[Service]"\
+            "\n#Execstart"\
+            "\n#ExecStart=-/usr/bin/agetty "\
+            "--autologin user --noclear %I $TERM"\
+            > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
     exit 0
 elif [ ! "$1" ]; then
     getSources
