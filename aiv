@@ -92,3 +92,5 @@ conditions() {
     # finish and umount stuff
     [ "$(lsblk | grep "\[SWAP\]$")" ] && swapoff $myswap
 }
+
+conditions
