@@ -24,7 +24,16 @@ getdisk () {
     fi
 }
 
-iarch () {
+archchroot() {
+    mount -t proc /proc /mnt/proc
+    mount --rbind /sys /mnt/sys/
+    mount --rbind /dev /mnt/dev/
+    #mount --rbind /sys/firmware/efi/efivars sys/firmware/efi/efivars/
+    cp /etc/resolv.conf etc/resolv.conf
+    chroot /mnt /bin/bash
+}
+
+iarch() { 
     getdisk
     [ "$(lsblk | grep /mnt$)" ] && umount /mnt
     [ "$(lsblk | grep "\[SWAP\]$")" ] && swapoff $myswap
@@ -36,7 +45,7 @@ iarch () {
     if [ "$formatchoice" == "yes" ]; then
         mkfs.ext4 -F $myroot
     elif [ "$formatchoice" == "exit" ]; then
-	exit 0
+        exit 0
       fi
     timedatectl set-ntp true
     mount $myroot /mnt
@@ -52,32 +61,34 @@ iarch () {
             "\n#ExecStart=-/usr/bin/agetty "\
             "--autologin user --noclear %I $TERM"\
             > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
-
+    archchroot
 }
 
 getSources() {
-reflector --country "United Kingdom" \
-          --age 12 \
-          --protocol https \
-          --sort rate \
-          > /etc/pacman.d/mirrorlist
+    reflector --country "United Kingdom" \
+              --age 12 \
+              --protocol https \
+              --sort rate \
+              > /etc/pacman.d/mirrorlist
 }
 
-if [[ "$1" == "sources" ]]; then
-    getSources
-    exit 0
-elif [[ "$1" == "test" ]]; then
-    mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
-    echo -e "#[Service]"\
-            "\n#Execstart"\
-            "\n#ExecStart=-/usr/bin/agetty "\
-            "--autologin user --noclear %I $TERM"\
-            > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
-    exit 0
-elif [ ! "$1" ]; then
-    getSources
-    iarch
-fi
+conditions() {
+    if [[ "$1" == "sources" ]]; then
+        getSources
+        exit 0
+    elif [[ "$1" == "test" ]]; then
+        mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
+        echo -e "#[Service]"\
+             "\n#Execstart"\
+             "\n#ExecStart=-/usr/bin/agetty "\
+             "--autologin user --noclear %I $TERM"\
+             > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
+        exit 0
+    elif [ ! "$1" ]; then
+        getSources
+        iarch
+    fi
 
-# finish and umount stuff
-[ "$(lsblk | grep "\[SWAP\]$")" ] && swapoff $myswap
+    # finish and umount stuff
+    [ "$(lsblk | grep "\[SWAP\]$")" ] && swapoff $myswap
+}
