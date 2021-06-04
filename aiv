@@ -46,7 +46,7 @@ iarch() {
         mkfs.ext4 -F $myroot
     elif [ "$formatchoice" == "exit" ]; then
         exit 0
-      fi
+    fi
     timedatectl set-ntp true
     mount $myroot /mnt
     mkswap $myswap
