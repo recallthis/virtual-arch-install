@@ -24,14 +24,20 @@ getdisk () {
     fi
 }
 
-archchroot() {
+preparechroot() {
     mount -t proc /proc /mnt/proc
     mount --rbind /sys /mnt/sys/
     mount --rbind /dev /mnt/dev/
     #mount --rbind /sys/firmware/efi/efivars sys/firmware/efi/efivars/
     cp /etc/resolv.conf etc/resolv.conf
-    chroot /mnt /bin/bash
 }
+
+mount -t proc /proc /mnt/proc
+mount --rbind /sys /mnt/sys/
+mount --rbind /dev /mnt/dev/
+#mount --rbind /sys/firmware/efi/efivars sys/firmware/efi/efivars/
+cp /etc/resolv.conf /mnt/etc/resolv.conf
+chroot /mnt /bin/bash
 
 iarch() { 
     getdisk
@@ -61,7 +67,25 @@ iarch() {
             "\n#ExecStart=-/usr/bin/agetty "\
             "--autologin user --noclear %I $TERM"\
             > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
-    archchroot
+    preparechroot
+    }
+
+ln -v -sf /usr/share/zoneinfo/Europe/London /etc/localtime
+    # hwclock --systohc --utc
+    # sed -i 's/#en_GB.UTF-8/en_GB.UTF-8/' /etc/locale.gen
+    # localectl set-locale LANG=en_GB.UTF-8
+    # export LANG=en_GB.UTF-8
+    # locale-gen
+    # echo "arch" > /etc/hostname
+    # echo -e "127.0.0.1\tlocalhost"\
+    #         "\n::1\t\tlocalhost"\
+    #         "\n127.0.1.1\tarch.localdomain  arch"\
+    #         > /etc/hosts
+    # useradd -m user
+    # pacman -Syu --needed --noconfirm git netctl wpa_supplicant \
+    #        dialog grub efibootmgr dosfstools os-prober mtools refind-efi
+    # usermod -aG wheel,audio,video,optical,storage user
+    # sed -i 's/# %wheel ALL=(ALL) ALL/ %wheel ALL=(ALL) ALL/' /etc/sudoers
 }
 
 getSources() {
@@ -85,6 +109,7 @@ conditions() {
              > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
         exit 0
     elif [ ! "$1" ]; then
+        printf "getting sources...\n\n"
         getSources
         iarch
     fi
