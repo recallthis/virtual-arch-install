@@ -29,15 +29,12 @@ preparechroot() {
     mount --rbind /sys /mnt/sys/
     mount --rbind /dev /mnt/dev/
     #mount --rbind /sys/firmware/efi/efivars sys/firmware/efi/efivars/
-    cp /etc/resolv.conf etc/resolv.conf
+    cp /etc/resolv.conf /mnt/etc/resolv.conf
 }
 
-mount -t proc /proc /mnt/proc
-mount --rbind /sys /mnt/sys/
-mount --rbind /dev /mnt/dev/
-#mount --rbind /sys/firmware/efi/efivars sys/firmware/efi/efivars/
-cp /etc/resolv.conf /mnt/etc/resolv.conf
-chroot /mnt /bin/bash
+archchroot() {
+    chroot /mnt /bin/bash
+}
 
 iarch() { 
     getdisk
@@ -70,7 +67,8 @@ iarch() {
     preparechroot
     }
 
-ln -v -sf /usr/share/zoneinfo/Europe/London /etc/localtime
+iarchroot() { 
+    ln -v -sf /usr/share/zoneinfo/Europe/London /etc/localtime
     # hwclock --systohc --utc
     # sed -i 's/#en_GB.UTF-8/en_GB.UTF-8/' /etc/locale.gen
     # localectl set-locale LANG=en_GB.UTF-8
@@ -78,12 +76,12 @@ ln -v -sf /usr/share/zoneinfo/Europe/London /etc/localtime
     # locale-gen
     # echo "arch" > /etc/hostname
     # echo -e "127.0.0.1\tlocalhost"\
-    #         "\n::1\t\tlocalhost"\
-    #         "\n127.0.1.1\tarch.localdomain  arch"\
-    #         > /etc/hosts
+        #         "\n::1\t\tlocalhost"\
+        #         "\n127.0.1.1\tarch.localdomain  arch"\
+        #         > /etc/hosts
     # useradd -m user
     # pacman -Syu --needed --noconfirm git netctl wpa_supplicant \
-    #        dialog grub efibootmgr dosfstools os-prober mtools refind-efi
+        #        dialog grub efibootmgr dosfstools os-prober mtools refind-efi
     # usermod -aG wheel,audio,video,optical,storage user
     # sed -i 's/# %wheel ALL=(ALL) ALL/ %wheel ALL=(ALL) ALL/' /etc/sudoers
 }
