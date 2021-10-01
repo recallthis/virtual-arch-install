@@ -34,6 +34,7 @@ mainmenu(){
 		nextitem=${1}
 	fi
 	options=()
+	options+=("${txtautoinstall}" "Automatic Install")
 	options+=("${txtlanguage}" "Language")
 	options+=("${txtsetkeymap}" "(loadkeys ...)")
 	options+=("${txteditor}" "(${txtoptional})")
@@ -46,6 +47,10 @@ mainmenu(){
 		3>&1 1>&2 2>&3)
 	if [ "$?" = "0" ]; then
 		case ${sel} in
+			"${txtautoinstall}")
+				autoinstall
+				nextitem="${txtlanguage}"
+			;;
 			"${txtlanguage}")
 				chooselanguage
 				nextitem="${txtsetkeymap}"
@@ -84,6 +89,68 @@ mainmenu(){
 		clear
 	fi
 }
+#+end_src
+** askpassword
+#+begin_src sh
+askpassword(){
+    charcount='0'
+    prompt="${1}: "
+    reply=''
+    while IFS='' read -n '1' -p "${prompt}" -r -s 'char'
+    do
+        case "${char}" in
+            # Handles NULL
+            ( $'\000' )
+            break
+            ;;
+            # Handles BACKSPACE and DELETE
+            ( $'\010' | $'\177' )
+            if (( charcount > 0 )); then
+                prompt=$'\b \b'
+                reply="${reply%?}"
+                (( charcount-- ))
+            else
+                prompt=''
+            fi
+            ;;
+            ( * )
+            prompt='*'
+            reply+="${char}"
+            (( charcount++ ))
+            ;;
+        esac
+    done
+    printf '\n' >&2
+    printf '%s\n' "${reply}"
+}
+#+end_src
+** autoinstall
+#+begin_src sh
+  autoinstall(){
+      mountmenu
+      pwstatus="$(arch-chroot /mnt passwd --status root | sed 's/^[A-z]* \([A-z]*\) .*/\1/g')"
+      if [[ "$pwstatus" == "P" ]]; then
+          read -p "Re-enter password? y/n: " reenter 
+          if [[ "$reenter" == "y" ]]; then
+              mypwd="$(askpassword Password)"
+          fi
+      else
+          mypwd="$(askpassword Password)"
+      fi
+      reflector --country "United Kingdom" --age 12 --protocol https --sort rate > /etc/pacman.d/mirrorlist
+  
+      timedatectl set-ntp true
+      pacman -Sy
+      pacstrap /mnt base base-devel linux linux-firmware sudo nano
+      sed -i '/#\[multilib]/!b;n;s/^#//g' /mnt/etc/pacman.conf
+      genfstab -U -p /mnt > /mnt/etc/fstab
+      mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
+      echo -e "#[Service]"\
+           "\n#Execstart"\
+           "\n#ExecStart=-/usr/bin/agetty "\
+           "--autologin user --noclear %I $TERM"\
+           > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
+  }
 #+end_src
 ** chooselanguage
 #+begin_src sh
@@ -525,7 +592,6 @@ mountmenu(){
 		mountmenu "${nextitem}"
 	fi
 }
-
 #+end_src
 ** formatdevices
 #+begin_src sh
@@ -1866,29 +1932,30 @@ archrefindinstallchroot(){
 #+end_src
 ** archextrasmenu
 #+begin_src sh
-archextrasmenu(){
-	pkgs=""
-	options=()
-	options+=("nano" "" on)
-	options+=("vim" "" on)
-	options+=("dhcpcd" "" on)
-	sel=$(whiptail --backtitle "${apptitle}" --title "${txtextrasmenu}" --checklist "" 0 0 0 \
-		"${options[@]}" \
-		3>&1 1>&2 2>&3)
-	if [ ! "$?" = "0" ]; then
-		return 1
-	fi
-	for itm in $sel; do
-		pkgs="$pkgs $(echo $itm | sed 's/"//g')"
-	done
-	clear
-	echo "pacstrap /mnt ${pkgs}"
-	pacstrap /mnt ${pkgs}
-	if [[ "${pkgs}" == *"dhcpcd"* ]]; then
-		archchroot enabledhcpcd
-	fi
-	pressanykey
-}
+  archextrasmenu(){
+          pkgs=""
+          options=()
+          options+=("nano" "" on)
+          options+=("vim" "" on)
+          options+=("dhcpcd" "" on)
+          sel=$(whiptail --backtitle "${apptitle}" --title "${txtextrasmenu}" --checklist "" 0 0 0 \
+                  "${options[@]}" \
+                  3>&1 1>&2 2>&3)
+          if [ ! "$?" = "0" ]; then
+                  return 1
+          fi
+          for itm in $sel; do
+                  pkgs="$pkgs $(echo $itm | sed 's/"//g')"
+          done
+          clear
+          echo "pacstrap /mnt ${pkgs}"
+          pacstrap /mnt ${pkgs}
+          if [[ "${pkgs}" == *"dhcpcd"* ]]; then
+                  archchroot enabledhcpcd
+          fi
+          pkgs=""
+          pressanykey
+  }
 #+end_src
 ** archenabledhcpcdchroot
 #+begin_src sh
@@ -1990,9 +2057,12 @@ archdiinstallchroot(){
 #+end_src
 ** pressanykey
 #+begin_src sh
-pressanykey(){
-	read -n1 -p "${txtpressanykey}"
-}
+  pressanykey(){
+      if [[ "$silentinstall" == "1" ]]; then
+          read -n1 -t3 -p "${txtpressanykey}"
+      else
+          read -n1 -p "${txtpressanykey}"
+  }
 #+end_src
 ** loadstrings
 #+begin_src sh
@@ -2008,6 +2078,7 @@ loadstrings(){
 	txtselectserver="Select source server :"
 
 	txtmainmenu="Main Menu"
+	txtautoinstall="Automatic Install"
 	txtlanguage="Language"
 	txtsetkeymap="Set Keyboard Layout"
 	txteditor="Editor"

@@ -106,6 +106,9 @@ conditions() {
              "--autologin user --noclear %I $TERM"\
              > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
         exit 0
+    elif [ "$1" ]; then
+        $1
+        exit 0
     elif [ ! "$1" ]; then
         printf "getting sources...\n\n"
         getSources

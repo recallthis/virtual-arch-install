@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Arch Linux Fast Install (archfi)
 # --------------------------------
 # author    : MatMoul
@@ -11,13 +9,11 @@
 #
 # referance : https://wiki.archlinux.org/index.php/Installation_guide
 
-
-apptitle="Arch Linux Fast Install (archfi) - Version: 2021.06.05.01.19.05 (GPLv3)"
+apptitle="Arch Linux Fast Install (archfi) - Version: 2021.01.25.23.15.12 (GPLv3)"
 baseurl=https://raw.githubusercontent.com/MatMoul/archfi/master
 cpl=0
 skipfont="0"
 fspkgs=""
-
 
 # --------------------------------------------------------
 mainmenu(){
@@ -168,6 +164,7 @@ rebootpc(){
 
 
 # --------------------------------------------------------
+
 selectdisk(){
 		items=$(lsblk -d -p -n -l -o NAME,SIZE -e 7,11)
 		options=()
@@ -238,7 +235,6 @@ diskpartmenu(){
 		diskpartmenu "${nextitem}"
 	fi
 }
-
 
 diskpartautodos(){
 		device=$(selectdisk "${txtautoparts} (dos)")
@@ -390,6 +386,7 @@ diskpartcgdisk(){
 
 
 # --------------------------------------------------------
+
 selectparts(){
 	items=$(lsblk -p -n -l -o NAME -e 7,11)
 	options=()
@@ -462,6 +459,7 @@ selectparts(){
 
 
 # --------------------------------------------------------
+
 mountmenu(){
 	if [ "${1}" = "" ]; then
 		nextitem="."
@@ -489,7 +487,6 @@ mountmenu(){
 	fi
 }
 
-
 formatdevices(){
 	if (whiptail --backtitle "${apptitle}" --title "${txtformatdevices}" --yesno "${txtformatdeviceconfirm}" --defaultno 0 0) then
 		fspkgs=""
@@ -505,6 +502,7 @@ formatdevices(){
 		fi
 	fi
 }
+
 formatbootdevice(){
 	options=()
 	if [ "${efimode}" == "1" ]||[ "${efimode}" = "2" ]; then
@@ -547,6 +545,7 @@ formatbootdevice(){
 	echo ""
 	pressanykey
 }
+
 formatswapdevice(){
 	options=()
 	options+=("swap" "")
@@ -569,6 +568,7 @@ formatswapdevice(){
 	esac
 	clear
 }
+
 formatdevice(){
 	options=()
 	options+=("btrfs" "")
@@ -730,6 +730,7 @@ mountparts(){
 
 
 # --------------------------------------------------------
+
 installmenu(){
 	if [ "${1}" = "" ]; then
 		nextitem="${txtinstallarchlinux}"
@@ -899,6 +900,7 @@ unmountdevices(){
 
 
 # --------------------------------------------------------
+
 archmenu(){
 	if [ "${1}" = "" ]; then
 		nextitem="."
@@ -1040,7 +1042,6 @@ archchroot(){
 	echo "exit"
 }
 
-
 archsethostname(){
 	hostname=$(whiptail --backtitle "${apptitle}" --title "${txtsethostname}" --inputbox "" 0 0 "archlinux" 3>&1 1>&2 2>&3)
 	if [ "$?" = "0" ]; then
@@ -1120,6 +1121,7 @@ archsetlocale(){
 		pressanykey
 	fi
 }
+
 archsetlocalechroot(){
 	echo "locale-gen"
 	locale-gen
@@ -1190,11 +1192,13 @@ archsettime(){
 	pressanykey
 
 }
+
 archsettimeutcchroot(){
 	echo "hwclock --systohc --utc"
 	hwclock --systohc --utc
 	exit
 }
+
 archsettimelocalchroot(){
 	echo "hwclock --systohc --localtime"
 	hwclock --systohc --localtime
@@ -1206,6 +1210,7 @@ archsetrootpassword(){
 	archchroot setrootpassword
 	pressanykey
 }
+
 archsetrootpasswordchroot(){
 	echo "passwd root"
 	passed=1
@@ -1266,6 +1271,7 @@ archgenmkinitcpioluks(){
 	archchroot genmkinitcpio
 	pressanykey
 }
+
 archgenmkinitcpionvme(){
 	clear
 	echo "sed -i \"s/MODULES=()/MODULES=(nvme)/g\" /mnt/etc/mkinitcpio.conf"
@@ -1282,12 +1288,12 @@ archeditmkinitcpio(){
 		pressanykey
 	fi
 }
+
 archgenmkinitcpiochroot(){
 	echo "mkinitcpio -p linux"
 	mkinitcpio -p linux
 	exit
 }
-
 
 archbootloadermenu(){
 	options=()
@@ -1311,7 +1317,6 @@ archbootloadermenu(){
 		esac
 	fi
 }
-
 
 archbootloadergrubmenu(){
 	if [ "${1}" = "" ]; then
@@ -1387,6 +1392,7 @@ archgrubinstall(){
 	archchroot grubinstall
 	pressanykey
 }
+
 archgrubinstallchroot(){
 	echo "mkdir /boot/grub"
 	echo "grub-mkconfig -o /boot/grub/grub.cfg"
@@ -1432,6 +1438,7 @@ archgrubinstallbootloader(){
 		fi
 	fi
 }
+
 archgrubinstallbootloaderchroot(){
 	if [ ! "${1}" = "none" ]; then
 		echo "grub-install --target=i386-pc --recheck ${1}"
@@ -1439,6 +1446,7 @@ archgrubinstallbootloaderchroot(){
 	fi
 	exit
 }
+
 archgrubinstallbootloaderefichroot(){
 	if [ ! "${1}" = "none" ]; then
 		echo "grub-install --target=x86_64-efi --efi-directory=/boot --recheck ${1}"
@@ -1451,6 +1459,7 @@ archgrubinstallbootloaderefichroot(){
 	fi
 	exit
 }
+
 archgrubinstallbootloaderefiusbchroot(){
 	if [ ! "${1}" = "none" ]; then
 		echo "grub-install --target=i386-pc --recheck ${1}"
@@ -1465,7 +1474,6 @@ archgrubinstallbootloaderefiusbchroot(){
 	fi
 	exit
 }
-
 
 archbootloadersyslinuxbmenu(){
 	if [ "${1}" = "" ]; then
@@ -1498,6 +1506,7 @@ archbootloadersyslinuxbmenu(){
 		archbootloadersyslinuxbmenu "${nextblitem}"
 	fi
 }
+
 archsyslinuxinstall(){
 	clear
 
@@ -1541,6 +1550,7 @@ archsyslinuxinstall(){
 
 	pressanykey
 }
+
 archsyslinuxinstallbootloader(){
 	clear
 	if [ "${efimode}" == "1" ]||[ "${efimode}" == "2" ]; then
@@ -1550,6 +1560,7 @@ archsyslinuxinstallbootloader(){
 	fi
 	pressanykey
 }
+
 archsyslinuxinstallbootloaderchroot(){
 	if [ ! "${1}" = "none" ]; then
 		echo "syslinux-install_update -i -a -m"
@@ -1557,6 +1568,7 @@ archsyslinuxinstallbootloaderchroot(){
 	fi
 	exit
 }
+
 archsyslinuxinstallbootloaderefichroot(){
 	if [ ! "${1}" = "none" ]; then
 		echo "cp -r /usr/lib/syslinux/efi64/* /boot/syslinux"
@@ -1576,7 +1588,6 @@ archsyslinuxinstallbootloaderefichroot(){
 	fi
 	exit
 }
-
 
 archbootloadersystemdbmenu(){
 	if [ "${1}" = "" ]; then
@@ -1609,6 +1620,7 @@ archbootloadersystemdbmenu(){
 		archbootloadersystemdbmenu "${nextblitem}"
 	fi
 }
+
 archsystemdinstall(){
 	clear
 	archchroot systemdbootloaderinstall ${realrootdev}
@@ -1652,6 +1664,7 @@ archsystemdinstall(){
 
 	pressanykey
 }
+
 archsystemdinstallchroot(){
 	echo "bootctl --path=/boot install"
 	bootctl --path=/boot install
@@ -1661,7 +1674,6 @@ archsystemdinstallchroot(){
 		echo "\EFI\systemd\systemd-bootx64.efi" > /boot/startup.nsh
 	fi
 }
-
 
 archbootloaderrefindmenu(){
 	if [ "${1}" = "" ]; then
@@ -1690,10 +1702,11 @@ archbootloaderrefindmenu(){
 	fi
 
 }
+
 archrefindinstall(){
 	clear
 
-	echo "pacstrap /mnt refind"
+	echo "pacstrap /mnt refind-efi"
 	echo "archchroot refindbootloaderinstall ${realrootdev}"
 	echo "echo \"\\\"Arch Linux         \\\" \\\"root=UUID=${rootuuid} rw add_efi_memmap\\\"\" > /mnt/boot/refind_linux.conf"
 	echo "echo \"\\\"Arch Linux Fallback\\\" \\\"root=UUID=${rootuuid} rw add_efi_memmap initrd=/initramfs-linux-fallback.img\\\"\" >> /mnt/boot/refind_linux.conf"
@@ -1707,6 +1720,7 @@ archrefindinstall(){
 	echo "\"Arch Linux Terminal\" \"root=UUID=${rootuuid} rw add_efi_memmap systemd.unit=multi-user.target\"" >> /mnt/boot/refind_linux.conf
 	pressanykey
 }
+
 archrefindinstallchroot(){
 	#--usedefault /dev/sdXY --alldrivers
 	echo "refind-install"
@@ -1718,14 +1732,12 @@ archrefindinstallchroot(){
 	fi
 }
 
-
 archextrasmenu(){
 	pkgs=""
 	options=()
 	options+=("nano" "" on)
 	options+=("vim" "" on)
 	options+=("dhcpcd" "" on)
-	options+=("networkmanager" "" off)
 	sel=$(whiptail --backtitle "${apptitle}" --title "${txtextrasmenu}" --checklist "" 0 0 0 \
 		"${options[@]}" \
 		3>&1 1>&2 2>&3)
@@ -1741,20 +1753,12 @@ archextrasmenu(){
 	if [[ "${pkgs}" == *"dhcpcd"* ]]; then
 		archchroot enabledhcpcd
 	fi
-	if [[ "${pkgs}" == *"networkmanager"* ]]; then
-		archchroot enablenetworkmanager
-	fi
 	pressanykey
 }
+
 archenabledhcpcdchroot(){
 	echo "systemctl enable dhcpcd"
 	systemctl enable dhcpcd
-	exit
-}
-
-archenablenetworkmanagerchroot(){
-	echo "systemctl enable NetworkManager"
-	systemctl enable NetworkManager
 	exit
 }
 
@@ -1786,6 +1790,7 @@ installarchdi(){
 		fi
 	fi
 }
+
 archdidownload(){
 	txtselectserver="Select source server :"
 	txtback="Back"
@@ -1808,6 +1813,7 @@ archdidownload(){
 	echo "curl -L ${archdiurl} >archdi"
 	curl -L ${archdiurl} >archdi
 }
+
 archdiinstallandlaunchchroot(){
 	cd
 	archdidownload
@@ -1815,6 +1821,7 @@ archdiinstallandlaunchchroot(){
 	archdi --chroot
 	exit
 }
+
 archdilaunchchroot(){
 	cd
 	archdidownload
@@ -1822,6 +1829,7 @@ archdilaunchchroot(){
 	rm archdi
 	exit
 }
+
 archdiinstallchroot(){
 	cd
 	archdidownload
@@ -1833,205 +1841,7 @@ archdiinstallchroot(){
 
 
 # --------------------------------------------------------
+
 pressanykey(){
 	read -n1 -p "${txtpressanykey}"
 }
-
-loadstrings(){
-
-	locale=en_US.UTF-8
-	#font=
-
-	txtexit="Exit"
-	txtback="Back"
-	txtignore="Ignore"
-
-	txtselectserver="Select source server :"
-
-	txtmainmenu="Main Menu"
-	txtlanguage="Language"
-	txtsetkeymap="Set Keyboard Layout"
-	txteditor="Editor"
-	txtdiskpartmenu="Disk Partitions"
-	txtselectpartsmenu="Select Partitions and Install"
-	txthelp="Help"
-	txtchangelog="Changelog"
-	txtreboot="Reboot"
-
-	txtautoparts="Auto Partitions"
-	txteditparts="Edit Partitions"
-
-	txtautopartsconfirm="Selected device : %1\n\nAll data will be erased ! \n\nContinue ?"
-
-	txtautopartclear="Clear all partition data"
-	txtautopartcreate="Create %1 partition"
-	txthybridpartcreate="Set hybrid MBR"
-	txtautopartsettype="Set %1 partition type"
-
-	txtselectdevice="Select %1 device :"
-	txtselecteddevices="Selected devices :"
-
-	txtformatmountmenu="Format and Mount"
-	txtformatdevices="Format Devices"
-	txtformatdevice="Format Device"
-	txtmount="Mount"
-	txtunmount="Unmount"
-	txtmountdesc="Install or Config"
-
-	txtformatdeviceconfirm="Warning, all data on selected devices will be erased ! \nFormat devices ?"
-
-	txtselectpartformat="Select partition format for %1 :"
-	txtformatingpart="Formatting partition %1 as"
-	txtcreateluksdevice="Create luks device :"
-	txtopenluksdevice="Open luks device :"
-	txtluksdevicecreated="luks device created !"
-
-	txtinstallmenu="Install Menu"
-
-	txtarchinstallmenu="Arch Install Menu"
-
-	txtselectmirrorsbycountry="Select mirrors by country"
-	txtselectcountry="Select country"
-	txteditmirrorlist="Edit mirrorlist"
-	txtinstallarchlinux="Install Arch Linux"
-	txtinstallarchlinuxkernel="Kernel"
-	txtinstallarchlinuxfirmwares="Firmwares"
-	txtinstallarchlinuxfilesystems="File Systems"
-	txtinstallarchlinuxcustompackagelist="Custom Package List"
-	txtconfigarchlinux="Config Arch Linux"
-
-	txtsethostname="Set Computer Name"
-	txtsetfont="Set Font"
-	txtsetlocale="Set Locale"
-	txtsettime="Set Time"
-	txtsetrootpassword="Set root password"
-
-	txthwclock="Hardware clock :"
-	txthwclockutc="UTC"
-	txthwclocklocal="Local"
-
-	txtbootloader="Bootloader"
-	txtbootloadermenu="Choose your bootloader"
-
-	txtefibootmgr="efibootmgr is required for EFI computers."
-
-	txtbootloadergrubmenu="Grub Install Menu"
-	txtrungrubmakeconfig="Run grub-mkconfig ?"
-	txtgrubluksdetected="Encrypted root partion !\n\nAdd cryptdevice= to GRUB_CMDLINE_LINUX in /etc/default/grub ?"
-
-	txtbootloadersyslinuxmenu="Syslinux Install Menu"
-	txtsyslinuxaddefibootmgr="EFI install require efibootmgr"
-	txtsyslinuxaddgptfdisk="GPT disk require gptfdisk"
-	txtsyslinuxaddmtools="FAT boot part require mtools"
-
-	txtbootloadersystemdmenu="Systemd-boot Install Menu"
-
-	txtbootloaderrefindmenu="rEFInd Install Menu"
-	
-	txtextrasmenu="Extras"
-
-	txtoptional="Optional"
-	txtrecommandeasyinst="Recommanded for easy install"
-	txtset="Set %1"
-	txtgenerate="Generate %1"
-	txtedit="Edit %1"
-	txtinstall="Install %1"
-	txtenable="Enable %1"
-
-	txtpressanykey="Press any key to continue."
-
-	txtarchdidesc="Full desktop install script"
-	txtinstallarchdi="Arch Linux Desktop Install (archdi) is a second script who can help you to install a full workstation.\n\nYou can just launch the script or install it. Choose in the next menu.\n\nArch Linux Desktop Install as two dependencies : wget and libnewt.\n\npacstrap wget and libnewt?"
-	txtarchdiinstallandlaunch="Install and run archdi"
-	txtarchdiinstall="Install archdi"
-	txtarchdilaunch="Launch archdi"
-}
-
-# --------------------------------------------------------
-
-
-
-# --------------------------------------------------------
-while (( "$#" )); do
-	case ${1} in
-		--help)
-			echo "archfi"
-			echo "------"
-			echo "-cpl | --custom-package-list url  Set custom package list url"     
-			echo "-sf | --skip-font                 Skip setfont from language files"
-			echo "-efiX                             -efi0 : disable EFI, -efi1 efi inst, -efi2 efi hybrid inst"
-			echo "-t | --test ghusername ghbranch   Test archfi script and language"
-			exit 0
-		;;
-		-cpl | --custom-package-list)
-			curl -L ${2} > /tmp/archfi-custom-package-list
-			if [[ "$?" != "0" ]]; then
-				echo "Error downloading custom package list"
-				exit 0
-			fi
-			cpl=1
-		;;
-		-sf | --skip-font) skipfont=1;;
-		-t | --test)
-			curl -L https://raw.githubusercontent.com/${2}/archfi/${3}/archfi > archfi
-			sh archfi -tt ${2} ${3}
-			exit 0
-		;;
-		-tt) baseurl="https://raw.githubusercontent.com/${2}/archfi/${3}";;
-		-efi0) efimode=0;;
-		-efi1)
-			eficomputer=1
-			efimode=1
-		;;
-		-efi2)
-			eficomputer=1
-			efimode=2
-		;;
-		--chroot) chroot=1
-							command=${2}
-							args=${3};;
-	esac
-	shift
-done
-
-if [ "${chroot}" = "1" ]; then
-	case ${command} in
-		'setrootpassword') archsetrootpasswordchroot;;
-		'setlocale') archsetlocalechroot;;
-		'settimeutc') archsettimeutcchroot;;
-		'settimelocal') archsettimelocalchroot;;
-		'genmkinitcpio') archgenmkinitcpiochroot;;
-		'enabledhcpcd') archenabledhcpcdchroot;;
-		'enablenetworkmanager') archenablenetworkmanagerchroot;;
-		'grubinstall') archgrubinstallchroot;;
-		'grubbootloaderinstall') archgrubinstallbootloaderchroot ${args};;
-		'grubbootloaderefiinstall') archgrubinstallbootloaderefichroot ${args};;
-		'grubbootloaderefiusbinstall') archgrubinstallbootloaderefiusbchroot ${args};;
-		'syslinuxbootloaderinstall') archsyslinuxinstallbootloaderchroot ${args};;
-		'syslinuxbootloaderefiinstall') archsyslinuxinstallbootloaderefichroot ${args};;
-		'systemdbootloaderinstall') archsystemdinstallchroot ${args};;
-		'refindbootloaderinstall') archrefindinstallchroot ${args};;
-		'archdiinstallandlaunch') archdiinstallandlaunchchroot;;
-		'archdiinstall') archdiinstallchroot;;
-		'archdilaunch') archdilaunchchroot;;
-	esac
-else
-	pacman -S --needed arch-install-scripts wget libnewt
-	dmesg |grep efi: > /dev/null
-	if [ "$?" == "1" ]; then
-		if [ "${eficomputer}" != "1" ]; then
-			eficomputer=0
-		fi
-	else
-		eficomputer=1
-		if [ "${efimode}" == "" ]; then
-			efimode=1
-		fi
-	fi
-	loadstrings
-	EDITOR=nano
-	mainmenu
-fi
-
-exit 0
-# --------------------------------------------------------
