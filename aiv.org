@@ -2,51 +2,54 @@
 #+STARTUP: showeverything
 * Git config
 :PROPERTIES: 
-:header-args: :tangle /data/mine/src/archinstall/virtual-arch-install/aiv
+:header-args: :tangle /data/mine/dev/projects/virtual/virtual-arch-install/aiv
 :END:
 ** askpassword
-askpassword () {
-    charcount='0'
-    prompt="${1}: "
-    reply=''
-    while IFS='' read -n '1' -p "${prompt}" -r -s 'char'
-    do
-        case "${char}" in
-            # Handles NULL
-            ( $'\000' )
-            break
-            ;;
-            # Handles BACKSPACE and DELETE
-            ( $'\010' | $'\177' )
-            if (( charcount > 0 )); then
-                prompt=$'\b \b'
-                reply="${reply%?}"
-                (( charcount-- ))
-            else
-                prompt=''
-            fi
-            ;;
-            ( * )
-            prompt='*'
-            reply+="${char}"
-            (( charcount++ ))
-            ;;
-        esac
-    done
-    printf '\n' >&2
-    printf '%s\n' "${reply}"
-}
-** getdisk
 #+begin_src sh
   #!/bin/bash
-
-  getdisk () {
+  askpassword ()
+  {
+      charcount='0'
+      prompt="${1}: "
+      reply=''
+      while IFS='' read -n '1' -p "${prompt}" -r -s 'char'
+      do
+          case "${char}" in
+              # Handles NULL
+              ( $'\000' )
+              break
+              ;;
+              # Handles BACKSPACE and DELETE
+              ( $'\010' | $'\177' )
+              if (( charcount > 0 )); then
+                  prompt=$'\b \b'
+                  reply="${reply%?}"
+                  (( charcount-- ))
+              else
+                  prompt=''
+              fi
+              ;;
+              ( * )
+              prompt='*'
+              reply+="${char}"
+              (( charcount++ ))
+              ;;
+          esac
+      done
+      printf '\n' >&2
+      printf '%s\n' "${reply}"
+  }
+#+end_src
+** getdisk
+#+begin_src sh
+  getdisk ()
+  {
       IFS=$'\n'
       devicelist="$(lsblk -pdlno KNAME,SIZE /dev/sda[0-9] | awk '{if (NF>1) {print " "NR "\t" $0}}')"
       devicearray=( $(echo "$devicelist") )
       devicetotal="$(echo "$devicelist" | wc -l)"
-      echo "$devicelist"
       read -p "Choose a root device number from 1-$devicetotal  " rootchoice
+      printf "\n$devicelist\n"
       read -p "Choose a swap device number from 1-$devicetotal  " swapchoice
       if [[ "$rootchoice" -gt 0 ]] && [[ "$rootchoice" -le "$devicetotal" ]]; then
           let "rootchoice--"
@@ -67,7 +70,8 @@ askpassword () {
 
 ** preparechroot
 #+begin_src sh
-  preparechroot() {
+  preparechroot()
+  {
       mount -t proc /proc /mnt/proc
       mount --rbind /sys /mnt/sys/
       mount --rbind /dev /mnt/dev/
@@ -76,48 +80,43 @@ askpassword () {
   }
 #+end_src
 ** mainmenu
-# --------------------------------------------------------
-mainmenu(){
-	if [ "${1}" = "" ]; then
-		nextitem="."
-	else
-		nextitem=${1}
-	fi
-	options=()
-	options+=("${txtdiskpartmenu}" "")
-	options+=("${txtselectpartsmenu}" "")
-	options+=("" "")
-	options+=("${txtreboot}" "")
-	sel=$(whiptail --backtitle "${apptitle}" --title "${txtmainmenu}" --menu "" --cancel-button "${txtexit}" --default-item "${nextitem}" 0 0 0 \
-		"${options[@]}" \
-		3>&1 1>&2 2>&3)
-	if [ "$?" = "0" ]; then
-		case ${sel} in
-			"${txtdiskpartmenu}")
-				diskpartmenu
-				nextitem="${txtselectpartsmenu}"
-			;;
-			"${txtselectpartsmenu}")
-				selectparts
-				nextitem="${txtreboot}"
-			;;
-			"${txthelp}")
-				help
-				nextitem="${txtreboot}"
-			;;
-			"${txtreboot}")
-				rebootpc
-				nextitem="${txtreboot}"
-			;;
-		esac
-		mainmenu "${nextitem}"
-	else
-		clear
-	fi
-}
+#+begin_src sh
+  # --------------------------------------------------------
+  mainmenu()
+  {
+      whiptail=$(command -v whiptail)
+      dialog=$(command -v dialog)
+      menutype="${dialog:-$whiptail}"
+
+      local -A checkboxes;
+      checkboxes["$foo"]=off;
+      checkboxes["$bar"]=on;
+      checkboxes["$eric"]=on;
+
+      backtitle="Backtitle";
+      title="Title";
+      question="Please choose:";
+
+      choices=();
+      for key in "${!checkboxes[@]}";
+      do
+          choices+=("$key" "" "${checkboxes[$key]}");
+      done;
+
+      result=$(
+          $menutype --backtitle "$backtitle" \
+                    --title "$title"         \
+                    --checklist "$text"      \
+                    0 0 0 "${choices[@]}"    \
+                    3>&2 2>&1 1>&3-
+      );
+      echo "$result"
+  }
+#+end_src
 ** archchroot
 #+begin_src sh
-  archchroot() {
+  archchroot()
+  {
       echo "arch-chroot /mnt /root"
       cp ${0} /mnt/root
       chmod 755 /mnt/root/$(basename "${0}")
@@ -126,62 +125,143 @@ mainmenu(){
       echo "exit"
   }
 #+end_src
-** iarch
+** archinstall
 #+begin_src sh
-    iarch() { 
-        getdisk
-        [ "$(lsblk | grep /mnt$)" ] && umount /mnt
-        [ "$(lsblk | grep "\[SWAP\]$")" ] && swapoff $myswap
-        printf "\nFormat ${myroot} as root \
-                ${myswap} as swap (and /dev/sda1 as boot) .\n \
-                \nType yes to format, no to resume installation, \
-                 or exit to leave. yes/no/exit: "
-        read formatchoice
-        if [ "$formatchoice" == "yes" ]; then
-            mkfs.ext4 -F $myroot
-        elif [ "$formatchoice" == "exit" ]; then
-            exit 0
-        fi
-        timedatectl set-ntp true
-        mount $myroot /mnt
-        mkswap $myswap
-        swapon $myswap
-        pacman -Sy
-        pacstrap /mnt base base-devel linux linux-firmware sudo nano
-        sed -i '/#\[multilib]/!b;n;s/^#//g' /mnt/etc/pacman.conf
-        genfstab -U -p /mnt > /mnt/etc/fstab
-        mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
-        echo -e "#[Service]"\
-                "\n#Execstart"\
-                "\n#ExecStart=-/usr/bin/agetty "\
-                "--autologin user --noclear %I $TERM"\
-                > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
-        }
+  archinstall()
+  { 
+      getdisk
+      [ "$(lsblk | grep /mnt$)" ] && umount /mnt
+      [ "$(lsblk | grep "\[SWAP\]$")" ] && swapoff $myswap
+      printf "\nFormat ${myroot} as root \
+              ${myswap} as swap (and /dev/sda1 as boot) .\n \
+              \nType yes to format, no to resume installation, \
+               or exit to leave. yes/no/exit: "
+      read formatchoice
+      if [ "$formatchoice" == "yes" ]; then
+          mkfs.ext4 -F $myroot
+      elif [ "$formatchoice" == "exit" ]; then
+          exit 0
+      fi
+      timedatectl set-ntp true
+      mount $myroot /mnt
+      mkswap $myswap
+      swapon $myswap
+      pacman -Sy
+      pacstrap /mnt base base-devel linux linux-firmware sudo nano
+      sed -i '/#\[multilib]/!b;n;s/^#//g' /mnt/etc/pacman.conf
+      genfstab -U -p /mnt > /mnt/etc/fstab
+      mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
+      echo -e "#[Service]"\
+              "\n#Execstart"\
+              "\n#ExecStart=-/usr/bin/agetty "\
+              "--autologin user --noclear %I $TERM"\
+              > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
+      }
 #+end_src
-** iarchroot
-  #+begin_src sh
-    iarchroot() { 
-        ln -v -sf /usr/share/zoneinfo/Europe/London /etc/localtime
-        hwclock --systohc --utc
-        sed -i 's/#en_GB.UTF-8/en_GB.UTF-8/' /etc/locale.gen
-        localectl set-locale LANG=en_GB.UTF-8
-        export LANG=en_GB.UTF-8
-        locale-gen
-        echo "arch" > /etc/hostname
-        echo -e "127.0.0.1\tlocalhost"\
-                "\n::1\t\tlocalhost"\
-                "\n127.0.1.1\tarch.localdomain  arch"\
-                > /etc/hosts
-        useradd -m user
-        pacman -Syu --needed --noconfirm git netctl wpa_supplicant \
-               dialog grub efibootmgr dosfstools os-prober mtools refind-efi
-        usermod -aG wheel,audio,video,optical,storage user
-        sed -i 's/# %wheel ALL=(ALL) ALL/ %wheel ALL=(ALL) ALL/' /etc/sudoers
-    }
+** archchrootset
+*** archsettimechroot
+#+begin_src sh
+  archsettimechroot()
+  {
+      ln -v -sf /usr/share/zoneinfo/Europe/London /etc/localtime
+      exit
+  }
 #+end_src
+*** archsettimeutcchroot
+#+begin_src sh
+  archsettimeutcchroot()
+  {
+      echo "hwclock --systohc --utc"
+      hwclock --systohc --utc
+      exit
+  }
+#+end_src
+*** archsetlangvariablechroot
+#+begin_src sh
+  archsetlangvariablechroot()
+  {
+      sed -i 's/#en_GB.UTF-8/en_GB.UTF-8/' /etc/locale.gen
+      exit
+  }
+#+end_src
+*** archsetsetlocalectlchroot
+#+begin_src sh
+  archsetlangvariablechroot()
+  {
+      localectl set-locale LANG=en_GB.UTF-8
+      exit
+  }
+#+end_src
+*** archexportlanguagechroot
+#+begin_src sh
+  archexportlanguagechroot()
+  {
+      export LANG=en_GB.UTF-8
+      exit
+  }
+#+end_src
+*** archsetlocalechroot
+#+begin_src sh
+  archsetlocalechroot()
+  {
+      echo "locale-gen"
+      locale-gen
+      exit
+  }
+#+end_src
+
+*** archsethostnamechroot
+#+begin_src sh
+  archsethostnamechroot()
+  {
+      echo -e "127.0.0.1\tlocalhost"\
+              "\n::1\t\tlocalhost"\
+              "\n127.0.1.1\tarch.localdomain  arch"\
+              > /etc/hosts
+      exit
+  }
+#+end_src
+*** archsetuserchroot
+#+begin_src sh
+  archsetuserchroot()
+  {
+      useradd -m user
+      exit
+  }
+#+end_src
+*** archsetneededchroot
+#+begin_src sh
+  archsetneededchroot()
+  {
+      pacman -Syu --needed --noconfirm git netctl wpa_supplicant dialog grub efibootmgr dosfstools os-prober mtools refind-efi
+      exit
+  }
+#+end_src
+*** archsetusermodchroot
+#+begin_src sh
+  archsetusermodchroot()
+  {
+      usermod -aG wheel,audio,video,optical,storage user
+      exit
+  }
+#+end_src
+*** archsetsudoerschroot
+#+begin_src sh
+  archsetsudoerschroot()
+  {
+      sed -i 's/# %wheel ALL=(ALL) ALL/ %wheel ALL=(ALL) ALL/' /etc/sudoers
+      exit
+  }
+#+end_src
+*** archsetkeymap
+archsetkeymap()
+{
+}
+
 ** getsources
 #+begin_src sh
-  getSources() {
+  getsources()
+  {
       reflector --country "United Kingdom" \
                 --age 12 \
                 --protocol https \
@@ -189,202 +269,316 @@ mainmenu(){
                 > /etc/pacman.d/mirrorlist
   }
 #+end_src
-
 ** loadstrings
 #+begin_src sh
-loadstrings(){
+  loadstrings()
+  {
+      locale=en_US.UTF-8
+      #font=
 
-	locale=en_US.UTF-8
-	#font=
+      txtexit="Exit"
+      txtback="Back"
+      txtignore="Ignore"
 
-	txtexit="Exit"
-	txtback="Back"
-	txtignore="Ignore"
+      txtselectserver="Select source server :"
 
-	txtselectserver="Select source server :"
+      txtmainmenu="Main Menu"
+      txtlanguage="Language"
+      txtsetkeymap="Set Keyboard Layout"
+      txteditor="Editor"
+      txtdiskpartmenu="Disk Partitions"
+      txtselectpartsmenu="Select Partitions and Install"
+      txthelp="Help"
+      txtchangelog="Changelog"
+      txtreboot="Reboot"
 
-	txtmainmenu="Main Menu"
-	txtlanguage="Language"
-	txtsetkeymap="Set Keyboard Layout"
-	txteditor="Editor"
-	txtdiskpartmenu="Disk Partitions"
-	txtselectpartsmenu="Select Partitions and Install"
-	txthelp="Help"
-	txtchangelog="Changelog"
-	txtreboot="Reboot"
+      txtautoparts="Auto Partitions"
+      txteditparts="Edit Partitions"
 
-	txtautoparts="Auto Partitions"
-	txteditparts="Edit Partitions"
+      txtautopartsconfirm="Selected device : %1\n\nAll data will be erased ! \n\nContinue ?"
 
-	txtautopartsconfirm="Selected device : %1\n\nAll data will be erased ! \n\nContinue ?"
+      txtautopartclear="Clear all partition data"
+      txtautopartcreate="Create %1 partition"
+      txthybridpartcreate="Set hybrid MBR"
+      txtautopartsettype="Set %1 partition type"
 
-	txtautopartclear="Clear all partition data"
-	txtautopartcreate="Create %1 partition"
-	txthybridpartcreate="Set hybrid MBR"
-	txtautopartsettype="Set %1 partition type"
+      txtselectdevice="Select %1 device :"
+      txtselecteddevices="Selected devices :"
 
-	txtselectdevice="Select %1 device :"
-	txtselecteddevices="Selected devices :"
+      txtformatmountmenu="Format and Mount"
+      txtformatdevices="Format Devices"
+      txtformatdevice="Format Device"
+      txtmount="Mount"
+      txtunmount="Unmount"
+      txtmountdesc="Install or Config"
 
-	txtformatmountmenu="Format and Mount"
-	txtformatdevices="Format Devices"
-	txtformatdevice="Format Device"
-	txtmount="Mount"
-	txtunmount="Unmount"
-	txtmountdesc="Install or Config"
+      txtformatdeviceconfirm="Warning, all data on selected devices will be erased ! \nFormat devices ?"
 
-	txtformatdeviceconfirm="Warning, all data on selected devices will be erased ! \nFormat devices ?"
+      txtselectpartformat="Select partition format for %1 :"
+      txtformatingpart="Formatting partition %1 as"
+      txtcreateluksdevice="Create luks device :"
+      txtopenluksdevice="Open luks device :"
+      txtluksdevicecreated="luks device created !"
 
-	txtselectpartformat="Select partition format for %1 :"
-	txtformatingpart="Formatting partition %1 as"
-	txtcreateluksdevice="Create luks device :"
-	txtopenluksdevice="Open luks device :"
-	txtluksdevicecreated="luks device created !"
+      txtinstallmenu="Install Menu"
 
-	txtinstallmenu="Install Menu"
+      txtarchinstallmenu="Arch Install Menu"
 
-	txtarchinstallmenu="Arch Install Menu"
+      txtselectmirrorsbycountry="Select mirrors by country"
+      txtselectcountry="Select country"
+      txteditmirrorlist="Edit mirrorlist"
+      txtinstallarchlinux="Install Arch Linux"
+      txtinstallarchlinuxkernel="Kernel"
+      txtinstallarchlinuxfirmwares="Firmwares"
+      txtinstallarchlinuxfilesystems="File Systems"
+      txtinstallarchlinuxcustompackagelist="Custom Package List"
+      txtconfigarchlinux="Config Arch Linux"
 
-	txtselectmirrorsbycountry="Select mirrors by country"
-	txtselectcountry="Select country"
-	txteditmirrorlist="Edit mirrorlist"
-	txtinstallarchlinux="Install Arch Linux"
-	txtinstallarchlinuxkernel="Kernel"
-	txtinstallarchlinuxfirmwares="Firmwares"
-	txtinstallarchlinuxfilesystems="File Systems"
-	txtinstallarchlinuxcustompackagelist="Custom Package List"
-	txtconfigarchlinux="Config Arch Linux"
+      txtsethostname="Set Computer Name"
+      txtsetfont="Set Font"
+      txtsetlocale="Set Locale"
+      txtsettime="Set Time"
+      txtsetrootpassword="Set root password"
 
-	txtsethostname="Set Computer Name"
-	txtsetfont="Set Font"
-	txtsetlocale="Set Locale"
-	txtsettime="Set Time"
-	txtsetrootpassword="Set root password"
+      txthwclock="Hardware clock :"
+      txthwclockutc="UTC"
+      txthwclocklocal="Local"
 
-	txthwclock="Hardware clock :"
-	txthwclockutc="UTC"
-	txthwclocklocal="Local"
+      txtbootloader="Bootloader"
+      txtbootloadermenu="Choose your bootloader"
 
-	txtbootloader="Bootloader"
-	txtbootloadermenu="Choose your bootloader"
+      txtefibootmgr="efibootmgr is required for EFI computers."
 
-	txtefibootmgr="efibootmgr is required for EFI computers."
+      txtbootloadergrubmenu="Grub Install Menu"
+      txtrungrubmakeconfig="Run grub-mkconfig ?"
+      txtgrubluksdetected="Encrypted root partion !\n\nAdd cryptdevice= to GRUB_CMDLINE_LINUX in /etc/default/grub ?"
 
-	txtbootloadergrubmenu="Grub Install Menu"
-	txtrungrubmakeconfig="Run grub-mkconfig ?"
-	txtgrubluksdetected="Encrypted root partion !\n\nAdd cryptdevice= to GRUB_CMDLINE_LINUX in /etc/default/grub ?"
+      txtbootloadersyslinuxmenu="Syslinux Install Menu"
+      txtsyslinuxaddefibootmgr="EFI install require efibootmgr"
+      txtsyslinuxaddgptfdisk="GPT disk require gptfdisk"
+      txtsyslinuxaddmtools="FAT boot part require mtools"
 
-	txtbootloadersyslinuxmenu="Syslinux Install Menu"
-	txtsyslinuxaddefibootmgr="EFI install require efibootmgr"
-	txtsyslinuxaddgptfdisk="GPT disk require gptfdisk"
-	txtsyslinuxaddmtools="FAT boot part require mtools"
+      txtbootloadersystemdmenu="Systemd-boot Install Menu"
 
-	txtbootloadersystemdmenu="Systemd-boot Install Menu"
+      txtbootloaderrefindmenu="rEFInd Install Menu"
 
-	txtbootloaderrefindmenu="rEFInd Install Menu"
-	
-	txtextrasmenu="Extras"
+      txtextrasmenu="Extras"
 
-	txtoptional="Optional"
-	txtrecommandeasyinst="Recommanded for easy install"
-	txtset="Set %1"
-	txtgenerate="Generate %1"
-	txtedit="Edit %1"
-	txtinstall="Install %1"
-	txtenable="Enable %1"
+      txtoptional="Optional"
+      txtrecommandeasyinst="Recommanded for easy install"
+      txtset="Set %1"
+      txtgenerate="Generate %1"
+      txtedit="Edit %1"
+      txtinstall="Install %1"
+      txtenable="Enable %1"
 
-	txtpressanykey="Press any key to continue."
+      txtpressanykey="Press any key to continue."
 
-	txtarchdidesc="Full desktop install script"
-	txtinstallarchdi="Arch Linux Desktop Install (archdi) is a second script who can help you to install a full workstation.\n\nYou can just launch the script or install it. Choose in the next menu.\n\nArch Linux Desktop Install as two dependencies : wget and libnewt.\n\npacstrap wget and libnewt?"
-	txtarchdiinstallandlaunch="Install and run archdi"
-	txtarchdiinstall="Install archdi"
-	txtarchdilaunch="Launch archdi"
-}
+      txtarchdidesc="Full desktop install script"
+      txtinstallarchdi="Arch Linux Desktop Install (archdi) is a second script who can help you to install a full workstation.\n\nYou can just launch the script or install it. Choose in the next menu.\n\nArch Linux Desktop Install as two dependencies : wget and libnewt.\n\npacstrap wget and libnewt?"
+      txtarchdiinstallandlaunch="Install and run archdi"
+      txtarchdiinstall="Install archdi"
+      txtarchdilaunch="Launch archdi"
+  }
 
-# --------------------------------------------------------
+  # --------------------------------------------------------
 
 
-  
-  while (( "$#" )); do
-          case ${1} in
-                  --help)
-                          echo "arch install script"
-                          echo "------"
-                          echo "-t | --test currently does nothing"
-                          exit 0
-                  ;;
-                  -t | --test)
-                          exit 0
-                  ;;
-                  -efi0) efimode=0;;
-                  -efi1)
-                          eficomputer=1
-                          efimode=1
-                  ;;
-                  -efi2)
-                          eficomputer=1
-                          efimode=2
-                  ;;
-                  --chroot) chroot=1
-                                                          command=${2}
-                                                          args=${3};;
-          esac
-          shift
-  done
-  
-  if [ "${chroot}" = "1" ]; then
-          case ${command} in
-                  'archinstall') archinstallchroot;;
-          esac
-  else
-          pacman -S --needed wget libnewt
-          dmesg |grep efi: > /dev/null
-          if [ "$?" == "1" ]; then
-                  if [ "${eficomputer}" != "1" ]; then
-                          eficomputer=0
-                  fi
-          else
-                  eficomputer=1
-                  if [ "${efimode}" == "" ]; then
-                          efimode=1
-                  fi
-          fi
-          EDITOR=vim
-  fi
-  
-  exit 0
+
+    while (( "$#" )); do
+            case ${1} in
+                    --help)
+                            echo "arch install script"
+                            echo "------"
+                            echo "-t | --test currently does nothing"
+                            exit 0
+                    ;;
+                    -t | --test)
+                            exit 0
+                    ;;
+                    -efi0) efimode=0;;
+                    -efi1)
+                            eficomputer=1
+                            efimode=1
+                    ;;
+                    -efi2)
+                            eficomputer=1
+                            efimode=2
+                    ;;
+                    --chroot) chroot=1
+                                                            command=${2}
+                                                            args=${3};;
+            esac
+            shift
+    done
+
+    if [ "${chroot}" = "1" ]; then
+            case ${command} in
+                    'archinstall') archinstallchroot;;
+            esac
+    else
+            pacman -S --needed wget libnewt
+            dmesg |grep efi: > /dev/null
+            if [ "$?" == "1" ]; then
+                    if [ "${eficomputer}" != "1" ]; then
+                            eficomputer=0
+                    fi
+            else
+                    eficomputer=1
+                    if [ "${efimode}" == "" ]; then
+                            efimode=1
+                    fi
+            fi
+            EDITOR=vim
+    fi
+
+    exit 0
 #+end_src
 ** conditions
 #+begin_src sh
-  #conditions() {
-  #    if [[ "$1" == "sources" ]]; then
-  #        getSources
-  #        exit 0
-  #    elif [[ "$1" == "test" ]]; then
-  #        mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
-  #        echo -e "#[Service]"\
-  #             "\n#Execstart"\
-  #             "\n#ExecStart=-/usr/bin/agetty "\
-  #             "--autologin user --noclear %I $TERM"\
-  #             > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
-  #        exit 0
-  #    elif [ -n "$1" ]; then
-  #        $1
-  #        exit 0
-  #    elif [ -z "$1" ]; then
-  #        printf "getting sources...\n\n"
-  #        getSources
-  #        iarch
-  #        exit 0
-  #    fi
-  #
-  #    # finish and umount stuff
-  #    [ "$(lsblk | grep "\[SWAP\]$")" ] && swapoff $myswap
-  #}
+  conditions()
+  {
+      while (( "$#" )); do
+          case ${1} in
+              -t | --test) test=1 ;;
+              --chroot) chroot=1
+                        command=${2}
+                        args=${3};;
+          esac
+          shift
+      done
+
+archsettimechroot
+#+begin_src sh
+  archsettimechroot()
+  {
+      ln -v -sf /usr/share/zoneinfo/Europe/London /etc/localtime
+  }
+#+end_src
+archsettimeutcchroot
+#+begin_src sh
+  archsettimeutcchroot()
+  {
+      echo "hwclock --systohc --utc"
+      hwclock --systohc --utc
+      exit
+  }
+#+end_src
+archsetlangvariablechroot
+#+begin_src sh
+  archsetlangvariablechroot()
+  {
+      sed -i 's/#en_GB.UTF-8/en_GB.UTF-8/' /etc/locale.gen
+  }
+#+end_src
+archsetsetlocalectlchroot
+#+begin_src sh
+  archsetlangvariablechroot()
+  {
+      localectl set-locale LANG=en_GB.UTF-8
+  }
+#+end_src
+archexportlanguagechroot
+#+begin_src sh
+  archexportlanguagechroot()
+  {
+      export LANG=en_GB.UTF-8
+  }
+#+end_src
+archsetlocalechroot
+#+begin_src sh
+  archsetlocalechroot()
+  {
+      echo "locale-gen"
+      locale-gen
+      exit
+  }
 #+end_src
 
+archsethostnamechroot
+#+begin_src sh
+  archsethostnamechroot()
+  {
+      echo -e "127.0.0.1\tlocalhost"\
+              "\n::1\t\tlocalhost"\
+              "\n127.0.1.1\tarch.localdomain  arch"\
+              > /etc/hosts
+  }
+#+end_src
+archsetuserchroot
+#+begin_src sh
+  archsetuserchroot()
+  {
+      useradd -m user
+  }
+#+end_src
+archsetneededchroot
+#+begin_src sh
+  archsetneededchroot()
+  {
+      pacman -Syu --needed --noconfirm git netctl wpa_supplicant dialog grub efibootmgr dosfstools os-prober mtools refind-efi
+  }
+#+end_src
+archsetusermodchroot
+#+begin_src sh
+  archsetusermodchroot()
+  {
+      usermod -aG wheel,audio,video,optical,storage user
+  }
+#+end_src
+archsetsudoerschroot
+#+begin_src sh
+  archsetsudoerschroot()
+  {
+      sed -i 's/# %wheel ALL=(ALL) ALL/ %wheel ALL=(ALL) ALL/' /etc/sudoers
+  }
+#+end_src
+archsetkeymap
+archsetkeymap
+
+      if [ "${chroot}" = "1" ]; then
+          case ${command} in
+              'setrootpassword') archsetrootpasswordchroot;;
+              'setlocale') archsetlocalechroot;;
+              'settimeutc') archsettimeutcchroot;;
+              'settimelocal') archsettimelocalchroot;;
+              'genmkinitcpio') archgenmkinitcpiochroot;;
+              'enabledhcpcd') archenabledhcpcdchroot;;
+              'grubinstall') archgrubinstallchroot;;
+              'grubbootloaderinstall') archgrubinstallbootloaderchroot ${args};;
+              'grubbootloaderefiinstall') archgrubinstallbootloaderefichroot ${args};;
+              'grubbootloaderefiusbinstall') archgrubinstallbootloaderefiusbchroot ${args};;
+              'syslinuxbootloaderinstall') archsyslinuxinstallbootloaderchroot ${args};;
+              'syslinuxbootloaderefiinstall') archsyslinuxinstallbootloaderefichroot ${args};;
+              'systemdbootloaderinstall') archsystemdinstallchroot ${args};;
+              'refindbootloaderinstall') archrefindinstallchroot ${args};;
+          esac
+      fi
+
+        #if [[ "$test" == "1" ]]; then
+        #    mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
+        #    echo -e "#[Service]"\
+        #         "\n#Execstart"\
+        #         "\n#ExecStart=-/usr/bin/agetty "\
+        #         "--autologin user --noclear %I $TERM"\
+        #         > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
+        #    exit 0
+        #elif [ -n "$1" ]; then
+        #    $1
+        #    exit 0
+        #elif [ -z "$1" ]; then
+        #    printf "getting sources...\n\n"
+        #    getSources
+        #    iarch
+        #    exit 0
+        #fi
+
+        # finish and umount stuff
+    }
+#+end_src
 ** run
 #+begin_src sh
-conditions
+  loadstrings
+  conditions
+  #[ "$(lsblk | grep "\[SWAP\]$")" ] && swapoff $myswap
 #+end_src

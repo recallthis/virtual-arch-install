@@ -152,6 +152,34 @@ askpassword(){
            > /mnt/etc/systemd/system/getty@tty1.service.d/override.conf
   }
 #+end_src
+** autoinstallroot
+#+begin_src sh
+  autoinstallroot(){
+      ln -v -sf /usr/share/zoneinfo/Europe/London /etc/localtime
+      hwclock --systohc --utc
+      sed -i 's/#en_GB.UTF-8/en_GB.UTF-8/' /etc/locale.gen
+      localectl set-locale LANG=en_GB.UTF-8
+      export LANG=en_GB.UTF-8
+      locale-gen
+      echo "arch" > /etc/hostname
+      echo -e "127.0.0.1\tlocalhost\n::1\t\tlocalhost\n127.0.1.1\tarch.localdomain  arch" > /etc/hosts
+      useradd -m user
+      pacman -Syu --needed --noconfirm git netctl wpa_supplicant dialog grub efibootmgr dosfstools os-prober mtools refind-efi
+      usermod -aG wheel,audio,video,optical,storage user
+      sed -i 's/# %wheel ALL=(ALL) ALL/ %wheel ALL=(ALL) ALL/' /etc/sudoers
+      if [ -n "${mypwd:-}" ]; then
+          echo "root:${mypwd}" | chpasswd
+          echo "user:${mypwd}" | chpasswd user
+      fi
+      if [ "$1" == "mbr" ]; then
+          arch-chroot /mnt grub-install /dev/sda
+          arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+      fi
+  
+      grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/boot/efi
+      grub-mkconfig -o /boot/grub/grub.cfg
+  }
+#+end_src
 ** chooselanguage
 #+begin_src sh
 chooselanguage(){
