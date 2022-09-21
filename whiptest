@@ -1,0 +1,24 @@
+#!/bin/bash
+
+IFS=$'\n'
+items="$(lsblk -pdlno KNAME,SIZE /dev/sda[0-9] | awk '{print $1" "$2}')"
+options=()
+#for item in ${items}; do
+#	options+=("${item%%.*}" "" "off")
+#done
+options+=("gnome" "" "on")
+options+=("web" "" "on")
+options+=("editors" "" "on")
+options+=("system" "" "on")
+
+# echo "${options[@]}"
+
+keymap=$(whiptail --backtitle "backtitle" --title "title" --checklist "" 0 0 0 \
+	"${options[@]}" \
+	3>&1 1>&2 2>&3)
+if [ "$?" = "0" ]; then
+	clear
+	echo "loadkeys ${keymap}"
+	# loadkeys ${keymap}
+	# pressanykey
+fi
